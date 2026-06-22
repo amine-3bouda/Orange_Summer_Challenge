@@ -42,3 +42,39 @@ export async function sendAuctionStartedEmail(emails, artwork) {
     console.error('Failed to send email:', err)
   }
 }
+
+export async function sendTransactionEmail({ buyerEmail, sellerEmail, artworkTitle, amount }) {
+  try {
+    const t = await initMailer()
+
+    // Email to buyer
+    const buyerInfo = await t.sendMail({
+      from: '"Artwork Gallery" <noreply@gallery.test>',
+      to: buyerEmail,
+      subject: `Purchase Confirmation: ${artworkTitle}`,
+      text: `Congratulations! You won the auction for "${artworkTitle}" with a winning bid of $${amount.toFixed(2)}. The amount has been deducted from your wallet.`,
+      html: `<h3>🎉 Purchase Confirmation</h3>
+        <p>Congratulations! You won the auction for <strong>${artworkTitle}</strong>.</p>
+        <p><strong>Winning bid:</strong> $${amount.toFixed(2)}</p>
+        <p>The amount has been deducted from your wallet.</p>`,
+    })
+    console.log('[MAIL] Buyer confirmation sent: %s', buyerInfo.messageId)
+    console.log('[MAIL] Buyer preview: %s', nodemailer.getTestMessageUrl(buyerInfo))
+
+    // Email to seller
+    const sellerInfo = await t.sendMail({
+      from: '"Artwork Gallery" <noreply@gallery.test>',
+      to: sellerEmail,
+      subject: `Sale Confirmation: ${artworkTitle}`,
+      text: `Your artwork "${artworkTitle}" has been sold for $${amount.toFixed(2)}! The amount has been added to your wallet.`,
+      html: `<h3>💰 Sale Confirmation</h3>
+        <p>Your artwork <strong>${artworkTitle}</strong> has been sold!</p>
+        <p><strong>Sale price:</strong> $${amount.toFixed(2)}</p>
+        <p>The amount has been added to your wallet.</p>`,
+    })
+    console.log('[MAIL] Seller confirmation sent: %s', sellerInfo.messageId)
+    console.log('[MAIL] Seller preview: %s', nodemailer.getTestMessageUrl(sellerInfo))
+  } catch (err) {
+    console.error('Failed to send transaction emails:', err)
+  }
+}

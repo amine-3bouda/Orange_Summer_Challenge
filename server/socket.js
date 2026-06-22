@@ -26,20 +26,16 @@ export function initSocket(io) {
   })
 
   io.on('connection', (socket) => {
-    // Join an artwork-specific room for real-time updates
     socket.on('joinRoom', (artworkId) => {
       socket.join(`artwork:${artworkId}`)
     })
 
-    // Leave a room
     socket.on('leaveRoom', (artworkId) => {
       socket.leave(`artwork:${artworkId}`)
     })
 
-    // Place a bid
     socket.on('placeBid', async ({ artworkId, amount }, callback) => {
       try {
-        // Must be authenticated
         if (!socket.user) {
           return callback({ error: 'You must be logged in to place a bid.' })
         }
@@ -50,12 +46,10 @@ export function initSocket(io) {
           return callback({ error: 'Artwork not found.' })
         }
 
-        // Must be active
         if (artwork.status !== 'active') {
           return callback({ error: 'Bidding is only allowed during an active auction.' })
         }
 
-        // Cannot bid on your own artwork
         if (artwork.ownerId.toString() === socket.user._id.toString()) {
           return callback({ error: 'You cannot bid on your own artwork.' })
         }
@@ -65,7 +59,6 @@ export function initSocket(io) {
           return callback({ error: 'Bid amount must be a positive number.' })
         }
 
-        // Must be higher than current bid (or starting price if no bids yet)
         const minimumBid = artwork.currentBid ?? artwork.startingPrice
         if (parsedAmount <= minimumBid) {
           return callback({
@@ -73,7 +66,6 @@ export function initSocket(io) {
           })
         }
 
-        // Verify user has enough coins
         if (socket.user.coins < parsedAmount) {
           return callback({
             error: `You don't have enough coins. You have ${socket.user.coins} coins but tried to bid $${parsedAmount}.`,

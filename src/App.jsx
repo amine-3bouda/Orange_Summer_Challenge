@@ -784,16 +784,22 @@ function App() {
               {selectedArtwork.status === 'active' && currentUser && !isArtworkOwnedByCurrentUser(selectedArtwork) && (
                 <div className="bid-section">
                   <h3 className="bid-section-title">Place a Bid</h3>
-                  <p className="bid-current">
-                    Current bid: <strong>${(selectedArtwork.currentBid ?? selectedArtwork.startingPrice).toFixed(2)}</strong>
-                    {selectedArtwork.currentBidder?.username && (
-                      <span className="bid-leader"> by {selectedArtwork.currentBidder.username}</span>
-                    )}
-                  </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
+                    <p className="bid-current" style={{ margin: 0 }}>
+                      Current bid: <strong>${(selectedArtwork.currentBid ?? selectedArtwork.startingPrice).toFixed(2)}</strong>
+                      {selectedArtwork.currentBidder?.username && (
+                        <span className="bid-leader"> by {selectedArtwork.currentBidder.username}</span>
+                      )}
+                    </p>
+                    <span className="wallet-pill" style={{ fontSize: '0.8rem', padding: '4px 8px' }}>
+                      Balance: {currentUser.coins} coins
+                    </span>
+                  </div>
                   <div className="bid-input-row">
                     <input
                       type="number"
                       min={((selectedArtwork.currentBid ?? selectedArtwork.startingPrice) + 0.01).toFixed(2)}
+                      max={currentUser.coins}
                       step="0.01"
                       value={bidAmount}
                       onChange={(e) => { setBidAmount(e.target.value); setBidError(''); setBidSuccess('') }}
