@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { io } from 'socket.io-client'
 import './App.css'
+
+const SOCKET_URL = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000'
 
 const allowedTags = ['painting', 'wall art', 'digital', 'sketch']
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
@@ -66,6 +69,10 @@ function App() {
   const [form, setForm] = useState(emptyArtworkForm)
   const [selectedArtwork, setSelectedArtwork] = useState(null)
   const [currentView, setCurrentView] = useState('gallery')
+  const [bidAmount, setBidAmount] = useState('')
+  const [bidError, setBidError] = useState('')
+  const [bidSuccess, setBidSuccess] = useState('')
+  const socketRef = useRef(null)
 
   const isAuthenticated = Boolean(currentUser && authToken)
 
@@ -92,6 +99,57 @@ function App() {
   useEffect(() => {
     loadArtworks()
   }, [])
+
+  // Initialize socket connection when user logs in
+  useEffect(() => {
+    if (authToken) {
+      const socket = io(SOCKET_URL, {
+        auth: { token: authToken },
+      })
+      socketRef.current = socket
+      return () => {
+        socket.disconnect()
+        socketRef.current = null
+      }
+    } else {
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
+    }
+  }, [authToken])
+
+  // Join/leave artwork room when modal opens/closes
+  useEffect(() => {
+    const socket = socketRef.current
+    if (!socket) return
+    if (selectedArtwork) {
+      socket.emit('joinRoom', selectedArtwork._id)
+      // Listen for real-time bid updates
+      socket.on('newBid', (bidEvent) => {
+        setSelectedArtwork((current) => {
+          if (!current || current._id !== bidEvent.artworkId) return current
+          return {
+            ...current,
+            currentBid: bidEvent.currentBid,
+            currentBidder: bidEvent.currentBidder,
+            bids: [...(current.bids || []), bidEvent.bid],
+          }
+        })
+        setArtworks((current) =>
+          current.map((art) =>
+            art._id === bidEvent.artworkId
+              ? { ...art, currentBid: bidEvent.currentBid, currentBidder: bidEvent.currentBidder }
+              : art
+          )
+        )
+      })
+      return () => {
+        socket.emit('leaveRoom', selectedArtwork._id)
+        socket.off('newBid')
+      }
+    }
+  }, [selectedArtwork?._id, socketRef.current])
 
   useEffect(() => {
     const storedToken = localStorage.getItem(AUTH_STORAGE_KEY)
@@ -331,6 +389,29 @@ function App() {
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  function handlePlaceBid() {
+    setBidError('')
+    setBidSuccess('')
+    const socket = socketRef.current
+    if (!socket) {
+      setBidError('Not connected to server. Please refresh.')
+      return
+    }
+    const amount = Number(bidAmount)
+    if (!amount || amount <= 0) {
+      setBidError('Please enter a valid bid amount.')
+      return
+    }
+    socket.emit('placeBid', { artworkId: selectedArtwork._id, amount }, (response) => {
+      if (response.error) {
+        setBidError(response.error)
+      } else {
+        setBidSuccess('Your bid was placed successfully!')
+        setBidAmount('')
+      }
+    })
   }
 
   async function handleDelete(id) {
@@ -622,7 +703,7 @@ function App() {
                   <article key={artwork._id} className="artwork-card clickable" onClick={() => setSelectedArtwork(artwork)}>
                 <div className="artwork-image-container">
                   <img src={artwork.imageURL} alt={artwork.title} />
-                  <span className={`card-badge status-${artwork.status}`}>{artwork.status.toUpperCase()}</span>
+                  <span className={`card-badge status-${artwork.status || 'active'}`}>{(artwork.status || 'active').toUpperCase()}</span>
                 </div>
                 <div className="artwork-body">
                       <h3 className="artwork-title">{artwork.title}</h3>
@@ -697,6 +778,58 @@ function App() {
                       Subscribe to Notifications
                     </button>
                   )}
+                </div>
+              )}
+
+              {selectedArtwork.status === 'active' && currentUser && !isArtworkOwnedByCurrentUser(selectedArtwork) && (
+                <div className="bid-section">
+                  <h3 className="bid-section-title">Place a Bid</h3>
+                  <p className="bid-current">
+                    Current bid: <strong>${(selectedArtwork.currentBid ?? selectedArtwork.startingPrice).toFixed(2)}</strong>
+                    {selectedArtwork.currentBidder?.username && (
+                      <span className="bid-leader"> by {selectedArtwork.currentBidder.username}</span>
+                    )}
+                  </p>
+                  <div className="bid-input-row">
+                    <input
+                      type="number"
+                      min={((selectedArtwork.currentBid ?? selectedArtwork.startingPrice) + 0.01).toFixed(2)}
+                      step="0.01"
+                      value={bidAmount}
+                      onChange={(e) => { setBidAmount(e.target.value); setBidError(''); setBidSuccess('') }}
+                      placeholder={`Min: $${((selectedArtwork.currentBid ?? selectedArtwork.startingPrice) + 0.01).toFixed(2)}`}
+                    />
+                    <button className="primary-button" type="button" onClick={handlePlaceBid}>
+                      Place Bid
+                    </button>
+                  </div>
+                  {bidError && <p className="bid-message bid-error">{bidError}</p>}
+                  {bidSuccess && <p className="bid-message bid-success">{bidSuccess}</p>}
+                </div>
+              )}
+
+              {selectedArtwork.status === 'ended' && selectedArtwork.currentBid && (
+                <div className="bid-section">
+                  <p className="bid-current">🏆 Sold for <strong>${Number(selectedArtwork.currentBid).toFixed(2)}</strong>
+                    {selectedArtwork.currentBidder?.username && (
+                      <span className="bid-leader"> to {selectedArtwork.currentBidder.username}</span>
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {selectedArtwork.bids?.length > 0 && (
+                <div className="bid-history">
+                  <h3 className="bid-section-title">Bid History</h3>
+                  <ul className="bid-list">
+                    {[...selectedArtwork.bids].reverse().map((bid, i) => (
+                      <li key={i} className="bid-item">
+                        <span className="bid-item-user">{bid.username}</span>
+                        <span className="bid-item-amount">${Number(bid.amount).toFixed(2)}</span>
+                        <span className="bid-item-time">{new Date(bid.timestamp).toLocaleTimeString()}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>

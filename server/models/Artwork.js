@@ -44,6 +44,36 @@ const artworkSchema = new mongoose.Schema({
       ref: 'User',
     },
   ],
+  currentBid: {
+    type: Number,
+    default: null,
+  },
+  currentBidder: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  bids: [
+    {
+      userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+      },
+      username: {
+        type: String,
+        required: true,
+      },
+      amount: {
+        type: Number,
+        required: true,
+      },
+      timestamp: {
+        type: Date,
+        default: Date.now,
+      },
+    },
+  ],
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

@@ -1,11 +1,14 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
 
 import { connectDB } from './config/db.js'
 import authRouter from './routes/auth.js'
 import artworksRouter from './routes/artworks.js'
 import { initCronJobs } from './cron.js'
+import { initSocket } from './socket.js'
 
 dotenv.config()
 
@@ -22,11 +25,21 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRouter)
 app.use('/api/artworks', artworksRouter)
 
+const httpServer = createServer(app)
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+})
+
 async function startServer() {
   try {
     await connectDB()
     initCronJobs()
-    app.listen(port, () => {
+    initSocket(io)
+    httpServer.listen(port, () => {
       console.log(`Server running on port ${port}`)
     })
   } catch (error) {
