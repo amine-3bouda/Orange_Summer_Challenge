@@ -3,6 +3,7 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 
 import { connectDB } from './config/db.js'
+import authRouter from './routes/auth.js'
 import artworksRouter from './routes/artworks.js'
 
 dotenv.config()
@@ -17,6 +18,7 @@ app.get('/api/health', (req, res) => {
   res.json({ ok: true })
 })
 
+app.use('/api/auth', authRouter)
 app.use('/api/artworks', artworksRouter)
 
 async function startServer() {

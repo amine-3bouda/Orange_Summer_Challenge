@@ -4,7 +4,11 @@
 
 Frontend: `npm install` then `npm run dev`
 
-Backend: create a `.env` file with `MONGODB_URI` and `PORT`, then run `npm run dev:server`
+Backend: create a `.env` file with `MONGODB_URI`, `PORT`, and `JWT_SECRET`, then run `npm run dev:server`
+
+Auth flow: register or log in through the app, and new users start with `100 coins`.
+
+Artwork access: only the logged-in owner can edit or delete their artwork.
 
 ## Tech
 
@@ -13,10 +17,11 @@ Backend: create a `.env` file with `MONGODB_URI` and `PORT`, then run `npm run d
 - Express
 - MongoDB
 - Mongoose
+- JWT
 - Node.js
 
 ## Known issues
 
 - MongoDB must be running before the API starts.
-- There is no auth yet, so `ownerId` is a plain string.
-- The frontend is still the starter Vite app and does not use the API yet.
+- The backend needs a valid `JWT_SECRET` in `.env`.
+- Ownership checks depend on the user being logged in.
