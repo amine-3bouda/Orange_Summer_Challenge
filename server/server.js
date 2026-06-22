@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import { connectDB } from './config/db.js'
 import authRouter from './routes/auth.js'
 import artworksRouter from './routes/artworks.js'
+import { initCronJobs } from './cron.js'
 
 dotenv.config()
 
@@ -24,6 +25,7 @@ app.use('/api/artworks', artworksRouter)
 async function startServer() {
   try {
     await connectDB()
+    initCronJobs()
     app.listen(port, () => {
       console.log(`Server running on port ${port}`)
     })

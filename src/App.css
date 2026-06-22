@@ -301,6 +301,7 @@ select:focus-visible {
 .artwork-image-container {
   aspect-ratio: 4 / 3;
   overflow: hidden;
+  position: relative;
 }
 
 .artwork-image-container img {
@@ -441,7 +442,9 @@ select:focus-visible {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(31, 36, 48, 0.16);
+  background: rgba(31, 36, 48, 0.3);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
 }
 
 .modal-panel {
@@ -701,4 +704,45 @@ fieldset {
 
 .details-info strong {
   color: var(--accent-deep);
+}
+
+/* ── Auction Status Badges ─────────────────────────── */
+
+.card-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  z-index: 1;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-pending {
+  background: #fdf5d3;
+  color: #8c6d1f;
+  border: 1px solid #ebd893;
+}
+
+.status-active {
+  background: #e1f5e8;
+  color: #2b7a4b;
+  border: 1px solid #b7e0c9;
+}
+
+.status-ended {
+  background: #fde8e8;
+  color: #9f2d45;
+  border: 1px solid #f8c9c9;
 }

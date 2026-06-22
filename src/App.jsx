@@ -10,6 +10,8 @@ const emptyArtworkForm = {
   imageURL: '',
   tags: [],
   startingPrice: '',
+  startTime: '',
+  endTime: '',
 }
 
 const emptyAuthForm = {
@@ -273,6 +275,8 @@ function App() {
       imageURL: form.imageURL,
       tags: form.tags,
       startingPrice: Number(form.startingPrice),
+      startTime: form.startTime,
+      endTime: form.endTime,
     }
 
     try {
@@ -301,6 +305,31 @@ function App() {
       setForm(emptyArtworkForm)
     } catch (submitError) {
       setError(submitError.message)
+    }
+  }
+
+  async function handleSubscribe(id) {
+    setError('')
+    try {
+      const response = await fetch(`${API_BASE_URL}/artworks/${id}/subscribe`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+        },
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        if (response.status === 401) {
+          clearAuthSession()
+          setAuthError(data.message || 'Your session expired. Please log in again.')
+          setAuthMode('login')
+        }
+        throw new Error(data.message || 'Failed to subscribe')
+      }
+      setArtworks((current) => current.map((art) => (art._id === id ? data : art)))
+      setSelectedArtwork(data)
+    } catch (err) {
+      setError(err.message)
     }
   }
 
@@ -591,10 +620,11 @@ function App() {
 
                 return (
                   <article key={artwork._id} className="artwork-card clickable" onClick={() => setSelectedArtwork(artwork)}>
-                    <div className="artwork-image-container">
-                      <img src={artwork.imageURL} alt={artwork.title} />
-                    </div>
-                    <div className="artwork-body">
+                <div className="artwork-image-container">
+                  <img src={artwork.imageURL} alt={artwork.title} />
+                  <span className={`card-badge status-${artwork.status}`}>{artwork.status.toUpperCase()}</span>
+                </div>
+                <div className="artwork-body">
                       <h3 className="artwork-title">{artwork.title}</h3>
                       <p className="artwork-price">${Number(artwork.startingPrice).toFixed(2)}</p>
                     </div>
@@ -640,6 +670,9 @@ function App() {
             />
             
             <div className="details-info">
+              <p><strong>Status:</strong> <span className={`status-badge status-${selectedArtwork.status}`}>{selectedArtwork.status.toUpperCase()}</span></p>
+              <p><strong>Start Time:</strong> {new Date(selectedArtwork.startTime).toLocaleString()}</p>
+              <p><strong>End Time:</strong> {new Date(selectedArtwork.endTime).toLocaleString()}</p>
               <p><strong>Starting Price:</strong> ${Number(selectedArtwork.startingPrice).toFixed(2)}</p>
               <p><strong>Owner:</strong> {getOwnerInfo(selectedArtwork.ownerId).label}</p>
               
@@ -654,6 +687,18 @@ function App() {
                   <span className="empty-chip">No tags</span>
                 )}
               </div>
+
+              {selectedArtwork.status === 'pending' && currentUser && !isArtworkOwnedByCurrentUser(selectedArtwork) && (
+                <div style={{ marginTop: '12px' }}>
+                  {selectedArtwork.subscribers?.includes(currentUser.id) ? (
+                    <span className="tag-chip readonly" style={{ background: '#b9dcc6', color: '#356846' }}>Subscribed ✓</span>
+                  ) : (
+                    <button className="primary-button" type="button" onClick={() => handleSubscribe(selectedArtwork._id)}>
+                      Subscribe to Notifications
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -704,6 +749,26 @@ function App() {
                 value={form.startingPrice}
                 onChange={(event) => updateArtworkField('startingPrice', event.target.value)}
                 placeholder="250"
+                required
+              />
+            </label>
+
+            <label>
+              Start Time
+              <input
+                type="datetime-local"
+                value={form.startTime}
+                onChange={(event) => updateArtworkField('startTime', event.target.value)}
+                required
+              />
+            </label>
+
+            <label>
+              End Time
+              <input
+                type="datetime-local"
+                value={form.endTime}
+                onChange={(event) => updateArtworkField('endTime', event.target.value)}
                 required
               />
             </label>

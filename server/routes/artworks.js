@@ -31,6 +31,8 @@ function getArtworkPayload(body) {
   const title = String(body.title || '').trim()
   const imageURL = String(body.imageURL || '').trim()
   const startingPrice = Number(body.startingPrice)
+  const startTime = new Date(body.startTime)
+  const endTime = new Date(body.endTime)
 
   if (tags === null) {
     return { error: `Tags must be one or more of: ${allowedTags.join(', ')}` }
@@ -48,12 +50,31 @@ function getArtworkPayload(body) {
     return { error: 'Starting price must be a valid number greater than or equal to 0' }
   }
 
+  if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
+    return { error: 'Valid start time and end time are required' }
+  }
+
+  if (endTime <= startTime) {
+    return { error: 'End time must be after start time' }
+  }
+
+  const now = new Date()
+  let status = 'pending'
+  if (startTime <= now && endTime > now) {
+    status = 'active'
+  } else if (endTime <= now) {
+    status = 'ended'
+  }
+
   return {
     data: {
       title,
       imageURL,
       tags,
       startingPrice,
+      startTime,
+      endTime,
+      status,
     },
   }
 }
@@ -139,6 +160,9 @@ router.put('/:id', requireAuth, async (req, res) => {
     artwork.imageURL = payload.data.imageURL
     artwork.tags = payload.data.tags ?? artwork.tags
     artwork.startingPrice = payload.data.startingPrice
+    artwork.startTime = payload.data.startTime
+    artwork.endTime = payload.data.endTime
+    artwork.status = payload.data.status
 
     await artwork.save()
     await artwork.populate('ownerId', 'username email coins')
@@ -173,6 +197,38 @@ router.delete('/:id', requireAuth, async (req, res) => {
     res.json({ message: 'Artwork deleted successfully' })
   } catch (error) {
     res.status(500).json({ message: 'Failed to delete artwork' })
+  }
+})
+
+router.post('/:id/subscribe', requireAuth, async (req, res) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid artwork id' })
+    }
+
+    const artwork = await Artwork.findById(req.params.id)
+
+    if (!artwork) {
+      return res.status(404).json({ message: 'Artwork not found' })
+    }
+
+    if (artwork.status !== 'pending') {
+      return res.status(400).json({ message: 'You can only subscribe to pending auctions' })
+    }
+
+    const isSubscribed = artwork.subscribers.includes(req.user._id)
+
+    if (isSubscribed) {
+      return res.status(400).json({ message: 'You are already subscribed to this artwork' })
+    }
+
+    artwork.subscribers.push(req.user._id)
+    await artwork.save()
+    await artwork.populate('ownerId', 'username email coins')
+
+    res.json(artwork)
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to subscribe to artwork' })
   }
 })
 

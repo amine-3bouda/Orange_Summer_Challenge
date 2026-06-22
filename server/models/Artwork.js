@@ -25,6 +25,25 @@ const artworkSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  startTime: {
+    type: Date,
+    required: true,
+  },
+  endTime: {
+    type: Date,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'active', 'ended'],
+    default: 'pending',
+  },
+  subscribers: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+  ],
   ownerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
