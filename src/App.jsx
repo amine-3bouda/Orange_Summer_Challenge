@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 const allowedTags = ['painting', 'wall art', 'digital', 'sketch']
@@ -9,6 +9,9 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [isFormOpen, setIsFormOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTag, setSelectedTag] = useState('all')
+  const [maxPrice, setMaxPrice] = useState('')
   const [form, setForm] = useState({
     title: '',
     imageURL: '',
@@ -40,6 +43,24 @@ function App() {
   useEffect(() => {
     loadArtworks()
   }, [])
+
+  const filteredArtworks = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase()
+    const maxPriceValue = maxPrice === '' ? null : Number(maxPrice)
+
+    return artworks.filter((artwork) => {
+      const titleMatches = normalizedQuery
+        ? artwork.title.toLowerCase().includes(normalizedQuery) ||
+          artwork.ownerId.toLowerCase().includes(normalizedQuery)
+        : true
+
+      const tagMatches = selectedTag === 'all' ? true : artwork.tags?.includes(selectedTag)
+
+      const priceMatches = maxPriceValue === null ? true : Number(artwork.startingPrice) <= maxPriceValue
+
+      return titleMatches && tagMatches && priceMatches
+    })
+  }, [artworks, searchQuery, selectedTag, maxPrice])
 
   function updateField(field, value) {
     setForm((current) => ({
@@ -116,6 +137,12 @@ function App() {
     }
   }
 
+  function resetFilters() {
+    setSearchQuery('')
+    setSelectedTag('all')
+    setMaxPrice('')
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -128,13 +155,49 @@ function App() {
         </button>
       </header>
 
-      <section className="intro-panel">
-        <p className="intro-copy">
-          Explore the current artwork list below. Use the add button in the navigation bar to upload new pieces.
-        </p>
-        <div className="hero-stats">
-          <span>{artworks.length} artworks</span>
+      <section className="panel filter-panel">
+        <div className="filter-grid">
+          <label className="filter-field filter-field-search">
+            Search
+            <input
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search title or owner"
+            />
+          </label>
+
+          <label className="filter-field">
+            Tag
+            <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
+              <option value="all">All tags</option>
+              {allowedTags.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="filter-field">
+            Max price
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={maxPrice}
+              onChange={(event) => setMaxPrice(event.target.value)}
+              placeholder="50"
+            />
+          </label>
+
+          <button className="secondary-button filter-button" type="button" onClick={resetFilters}>
+            Clear filters
+          </button>
         </div>
+
+        <p className="status-text">
+          Showing {filteredArtworks.length} of {artworks.length} artworks.
+        </p>
       </section>
 
       <section className="panel list-panel">
@@ -156,8 +219,12 @@ function App() {
           <p className="status-text">No artworks yet. Use Add artwork to create the first one.</p>
         ) : null}
 
+        {!loading && artworks.length > 0 && filteredArtworks.length === 0 ? (
+          <p className="status-text">No artworks match the current filters.</p>
+        ) : null}
+
         <div className="artwork-grid">
-          {artworks.map((artwork) => (
+          {filteredArtworks.map((artwork) => (
             <article key={artwork._id} className="artwork-card">
               <img src={artwork.imageURL} alt={artwork.title} />
               <div className="artwork-body">
